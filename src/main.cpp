@@ -7,7 +7,7 @@
 #define SJW 4
 #define TSEG1 8
 #define TSEG2 15
-
+100101010101010101010101010101010101010101010101010101010
 //pins definition
 #define RX_PIN 2 // tem que ser 2 ou 3
 #define TX_PIN 4  //verifiacar se poder
@@ -18,7 +18,7 @@
 #define STATE1_PIN 13
 #define IDLE_PIN 3
 
-#define LENGTHFRAME 109
+#define LENGTHFRAME 105
 
 enum StatesBTL {sync, phase1, phase2};
 StatesBTL statesBTL;
@@ -93,24 +93,24 @@ uint8_t numberOfData() {
 
 void crc_calculator(uint8_t nextBit){
   uint8_t crcNext;
-  crcNext = nextBit^crc_check[14];
-  for(int j = 14; j>0; j--){
-    crc_check[j]= crc_check[j-1];
+  crcNext = nextBit^crc_check[0];
+  for(int j = 0; j<14; j++){
+    crc_check[j]= crc_check[j+1];
   }
-  crc_check[0] = 0;
+  crc_check[14] = 0;
   if(crcNext){
     crc_check[14] = crc_check[14] ^ 1;
     crc_check[13] = crc_check[13] ^ 0;
     crc_check[12] = crc_check[12] ^ 0;
-    crc_check[11] = crc_check[11] ^ 0;
+    crc_check[11] = crc_check[11] ^ 1;
     crc_check[10] = crc_check[10] ^ 1;
     crc_check[9] = crc_check[9] ^ 0;
-    crc_check[8] = crc_check[8] ^ 1;
+    crc_check[8] = crc_check[8] ^ 0;
     crc_check[7] = crc_check[7] ^ 1;
-    crc_check[6] = crc_check[6] ^ 0;
+    crc_check[6] = crc_check[6] ^ 1;
     crc_check[5] = crc_check[5] ^ 0;
     crc_check[4] = crc_check[4] ^ 1;
-    crc_check[3] = crc_check[3] ^ 1;
+    crc_check[3] = crc_check[3] ^ 0;
     crc_check[2] = crc_check[2] ^ 0;
     crc_check[1] = crc_check[1] ^ 0;
     crc_check[0] = crc_check[0] ^ 1;
@@ -514,7 +514,7 @@ void decoderLogic(uint8_t bitValue) {
     case DATA:
       bitStuff(bitValue);
 
-    //      Serial.println(data_length);
+      //Serial.println(data_length);
       if (count < data_length && bit_stuff == 0 && bit_stuff_error == 0) {
         data[count] = bitValue;
       }
@@ -534,7 +534,7 @@ void decoderLogic(uint8_t bitValue) {
       enable_crc = 0;
       bitStuff(bitValue);
 
-//      Serial.println(count);
+      //      Serial.println(count);
       
       if (count < 14 && bit_stuff == 0 && bit_stuff_error == 0) {
         crc[count] = bitValue;
@@ -546,9 +546,9 @@ void decoderLogic(uint8_t bitValue) {
         bit_stuff_enable = 0;         //desabilita a verificacao do bitStuff
         count = 0;
       }
-//      if(crc[count] != crc_check[14 - count] ){
-//        statesDecoder = ERROR_FLAG;
-//      }
+      //      if(crc[count] != crc_check[14 - count] ){
+      //        statesDecoder = ERROR_FLAG;
+      //      }
       break;
     case CRC_DELIMITER:
       crc_delimiter = bitValue;
@@ -564,7 +564,7 @@ void decoderLogic(uint8_t bitValue) {
       ack_slot = bitValue;
       statesDecoder = ACK_DELIMITER;
           
-       busWrite(0);
+      busWrite(0);
 
       break;
     case ACK_DELIMITER:
@@ -1079,7 +1079,7 @@ void logsaida() {
   Serial.print("ACK_SLOT: ");
   Serial.println(ack_slot);
   Serial.print("ACK_DELIMITER: ");
-  Serial.println(ack_slot);
+  Serial.println(ack_delimiter);
 
   Serial.print("OEF: ");
   for (int k = 0; k < 7; k++) {
@@ -1144,7 +1144,7 @@ void loop(void){
 
   
   //Teste frame com melhor caso
-  uint8_t can_stand[LENGTHFRAME] = {0,1,1,0,0,1,1,1,0,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1,0,0,0,0,1,0,1,0,0,0,1,1,0,1,1,1,1,1,1,1,1};
+  uint8_t can_stand[LENGTHFRAME] = {0,1,1,0,0,1,1,1,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1,0,0,1,1,0,0,1,1,1,0,1,1,0,1,1,1,1,1,1,1,1,1,1,1};
 
   if (i < LENGTHFRAME) {
    decoderLogic(can_stand[i]);
