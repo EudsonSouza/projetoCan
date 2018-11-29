@@ -7,7 +7,6 @@
 #define SJW 4
 #define TSEG1 8
 #define TSEG2 15
-100101010101010101010101010101010101010101010101010101010
 //pins definition
 #define RX_PIN 2 // tem que ser 2 ou 3
 #define TX_PIN 4  //verifiacar se poder
@@ -523,7 +522,7 @@ void decoderLogic(uint8_t bitValue) {
       }
 
       count ++;
-      
+      Serial.println(data_length);
       //Se o tamanho dos dados forem menor que 8 ignora os proximo bit ate mudar de estados
       if (count == data_length) {
         statesDecoder = CRC;
