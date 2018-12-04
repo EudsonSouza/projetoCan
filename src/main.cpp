@@ -17,7 +17,9 @@
 #define STATE1_PIN 13
 #define IDLE_PIN 3
 
+
 #define LENGTHFRAME 93
+
 
 int i = 0;
 enum StatesBTL {sync, phase1, phase2};
@@ -33,7 +35,7 @@ enum StatesDecoder {START_D, ID, RTR_SRR, IDE, ID_EXTEND, RTR_EXTEND, R1, R0, DL
                     CRC_DELIMITER, ACK_SLOT, ACK_DELIMITER, OEF, IFS, ERROR_FLAG, ERROR_FLAG2, ERROR_DELIMITER,
                     OVERLOAD_FLAG, OVERLOAD_FLAG2, OVERLOAD_DELIMITER
                    };
-StatesDecoder statesDecoder;
+StatesDecoder statesDecoder, statesEncoder;
 
 //enum StatesError {ERROR_FLAG, ERROR_FLAG2, ERROR_DELIMITER};
 //StatesError statesError;
@@ -48,9 +50,8 @@ byte hsValue = 0, tqValue = 0 , ssValue = 0, states = 0, STATE0 = 0, STATE1 = 0;
 
 //variaveis para o bitstuff
 uint8_t bit_stuff = 0, bit_stuff_value, bit_stuff_error = 0, bit_stuff_enable = 0;
-
-//variaveis para o bitstuff2
-uint8_t bit_stuff2 = 0, bit_stuff_value2, bit_stuff_error2 = 0, bit_stuff_enable2 = 0;
+uint8_t count0;
+uint8_t count1;
 
 //variaveis para o decoder
 uint8_t count = 0, over_count = 0, er_count = 0, data_length;
@@ -281,9 +282,8 @@ void btlLogic() {
 
 //maquina de estado do bitstuff
 void bitStuff(uint8_t bitValue) {
-  static uint8_t count0;
-  static uint8_t count1;
   if (bit_stuff_enable == 1) {
+   // Serial.println(String(statesBitStuff) + " bit_stuff " + String(bit_stuff) + " count0 = " + String(count0) + " count1 = " + String(count1) );
     switch (statesBitStuff) {
       case START:
         count0 = 0;
@@ -300,36 +300,37 @@ void bitStuff(uint8_t bitValue) {
         }
         break;
       case READ0:
-        if (bitValue == 0 && count0 < 6) {
+        if (bitValue == 0 && count0 < 5) {
           count0++;
         }
-        else if (bitValue == 1 && count0 < 6) {
+        else if (bitValue == 1 && count0 < 5) {
           statesBitStuff = READ1;
+          count1 = 0;
           count1++;
           count0 = 0;
         }
-        else if (count0 == 6) {
+        else if (count0 == 5) {
           statesBitStuff = BIT_STUFF;
           bit_stuff = 1;                  //indica a ocorrencia de um bit stuff
-          bit_stuff_value = !bitValue;
+          bit_stuff_value = 1;
           if(decoder_enable && bitValue == 0){
             bit_stuff_error = 1;
           }
         }
         break;
       case READ1:
-        if (bitValue == 0 && count1 < 6) {
+        if (bitValue == 1 && count1 < 5) {
           count1++;
         }
-        else if (bitValue == 1 && count1 < 6) {
+        else if (bitValue == 0 && count1 < 5) {
           statesBitStuff = READ0;
           count0++;
           count1 = 0;
         }
-        else if (count1 == 6) {
+        else if (count1 == 5) {
           statesBitStuff = BIT_STUFF;
           bit_stuff = 1;                  //indica a ocorrencia de um bit stuff
-          bit_stuff_value = !bitValue;
+          bit_stuff_value = 0;
           if(decoder_enable && bitValue == 1){
             bit_stuff_error = 1;
           }
@@ -358,87 +359,6 @@ void bitStuff(uint8_t bitValue) {
   }
 }
 
-// void bitStuff2(uint8_t bitValue) {
-  //   static uint8_t count0;
-  //   static uint8_t count1;
-  //   if (bit_stuff_enable2 == 1) {
-  //     switch (statesBitStuff2) {
-  //       case START:
-  //         count0 = 0;
-  //         count1 = 0;
-  //         bit_stuff2 = 0;    //variavel responsavel por indicar a ocorrencia de um bit stuff
-
-  //         if (bitValue == 0) {
-  //           statesBitStuff2 = READ0;
-  //           count0++;
-  //         }
-  //         else {
-  //           statesBitStuff2 = READ1;
-  //           count1++;
-  //         }
-  //         break;
-  //       case READ0:
-  //         if (bitValue == 0 && count0 < 5) {
-  //           count0++;
-  //         }
-  //         else if (bitValue == 1 && count0 <=5) {
-  //           statesBitStuff2 = READ1;
-  //           count1 = 0;
-  //           count1++;
-  //           count0 = 0;
-  //         }
-  //         else if (count0 == 5) {
-  //           statesBitStuff2 = BIT_STUFF;
-  //           bit_stuff2 = 1;                  //indica a ocorrencia de um bit stuff
-  //           bit_stuff_value2 = !bitValue;
-  //         }
-        
-  //         else {
-  //           statesBitStuff2 = ERROR_FRAME;
-  //           bit_stuff_error2 = 1;
-  //         }
-  //         break;
-  //       case READ1:
-  //         if (bitValue == 1 && count1 < 6 ) {
-  //           count1++;
-  //         }
-  //         else if (bitValue == 0 && count1 == 5) {
-  //           statesBitStuff2 = BIT_STUFF;
-  //           bit_stuff2 = 1;                //indica a ocorrencia de um bit stuff
-  //           bit_stuff_value2 = !bitValue;
-  //         }
-  //         else if (bitValue == 0 && count1 < 6) {
-  //           statesBitStuff2 = READ0;
-  //           count0++;
-  //           count1 = 0;
-  //         }
-  //         else {
-  //           statesBitStuff2 = ERROR_FRAME;
-  //           bit_stuff_error2 = 1;
-  //         }
-  //         break;
-  //         /*case Error_Frame:
-  //           bit_stuff_error = 1;
-  //           break;*/
-  //       case BIT_STUFF:
-  //         bit_stuff2 = 0;
-  //         count0 = 0;
-  //         count1 = 0;
-
-  //         if (bitValue == 0) {
-  //           statesBitStuff2 = READ0;
-  //           count0++;
-  //           count1 = 0;
-  //         }
-  //         else {
-  //           statesBitStuff2 = READ1;
-  //           count0 = 0;
-  //           count1++;
-  //         }
-  //         break;
-  //     }
-  //   }
-// }
 
  
 
@@ -476,7 +396,7 @@ void decoderLogic(uint8_t bitValue) {
       
       if (bit_stuff_error == 1) {
         statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: ");
+        Serial.print("\nError Flag: ");
       }
       else {
         if (count < 10 && bit_stuff == 0) {
@@ -502,7 +422,7 @@ void decoderLogic(uint8_t bitValue) {
       }
       else if (bit_stuff_error == 1) {
         statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: ");
+        Serial.print("\nError Flag: ");
       }
       break;
     case IDE:
@@ -523,7 +443,7 @@ void decoderLogic(uint8_t bitValue) {
       }
       else if (bit_stuff_error == 1) {
         statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: ");
+        Serial.print("\nError Flag: ");
       }
       break;
     case ID_EXTEND:
@@ -541,7 +461,7 @@ void decoderLogic(uint8_t bitValue) {
       }
       else if (bit_stuff_error == 1) {
         statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: ");
+        Serial.print("\nError Flag: ");
       }
       break;
     case RTR_EXTEND:
@@ -554,7 +474,7 @@ void decoderLogic(uint8_t bitValue) {
       }
       else if (bit_stuff_error == 1) {
         statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: ");
+        Serial.print("\nError Flag: ");
       }
       break;
     case R1:
@@ -568,7 +488,7 @@ void decoderLogic(uint8_t bitValue) {
       }
       else if (bit_stuff_error == 1) {
         statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: ");
+        Serial.print("\nError Flag: ");
       }
       break;
     case R0:
@@ -584,100 +504,94 @@ void decoderLogic(uint8_t bitValue) {
       }
       else if (bit_stuff_error == 1) {
         statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: ");
+        Serial.print("\nError Flag: ");
       }
       break;
     case DLC:
       bitStuff(bitValue);
+        if(!bit_stuff){
+          if (count < 3 && bit_stuff == 0 && bit_stuff_error == 0) {
+            dlc[count] = bitValue;
+            Serial.print(dlc[count]);
+            count ++;
+          }
+          else if (count == 3 && bit_stuff == 0 && bit_stuff_error == 0) {
+            dlc[count] = bitValue;
+            Serial.println(dlc[count]);
+            count ++;
+          }
+          else if (bit_stuff_error == 1) {
+            statesDecoder = ERROR_FLAG;
+            Serial.print("\nError Flag: ");
+          }
 
-      if (count < 3 && bit_stuff == 0 && bit_stuff_error == 0) {
-        dlc[count] = bitValue;
-        Serial.print(dlc[count]);
-        count ++;
-      }
-      else if (count == 3 && bit_stuff == 0 && bit_stuff_error == 0) {
-        dlc[count] = bitValue;
-        Serial.println(dlc[count]);
-        count ++;
-      }
-      else if (bit_stuff_error == 1) {
-        statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: ");
-      }
+          if (count == 4 && !bit_stuff) {
+            //calcula o datanho do campo de dados
+            //        for(int i=0;i<4;i++){
+            //          Serial.print("i: ");
+            //          Serial.print(i);
+            //          Serial.print("dlc: ");
+            //          Serial.println(dlc[i]);
+            //        }
+            data_length = numberOfData();
+            //        Serial.print("Tamanho dos dados: ");
+            //        Serial.print(data_length);
 
-      if (count == 4) {
-        //calcula o datanho do campo de dados
-        //        for(int i=0;i<4;i++){
-        //          Serial.print("i: ");
-        //          Serial.print(i);
-        //          Serial.print("dlc: ");
-        //          Serial.println(dlc[i]);
-        //        }
-        data_length = numberOfData();
-        //        Serial.print("Tamanho dos dados: ");
-        //        Serial.print(data_length);
-
-        if ((/*count == 3 &&*/ ( (rtr_srr == 1 && ide == 0) || (ide == 1 && rtr_extend == 1) ) || data_length == 0) ) {
-          statesDecoder = CRC;
-          Serial.print("CRC: ");
-          count = 0;
+            if ((/*count == 3 &&*/ ( (rtr_srr == 1 && ide == 0) || (ide == 1 && rtr_extend == 1) ) || data_length == 0) ) {
+              statesDecoder = CRC;
+              Serial.print("CRC: ");
+              count = 0;
+            }
+            else {
+              statesDecoder = DATA;
+              Serial.print("DATA: ");
+              count = 0;
+            }
+          }
         }
-        else {
-          statesDecoder = DATA;
-          Serial.print("DATA: ");
-          count = 0;
-        }
-      }
       break;
     case DATA:
       bitStuff(bitValue);
+      if(!bit_stuff){
+        //Serial.println(data_length);
+        if (count < data_length && bit_stuff == 0 && bit_stuff_error == 0) {
+          data[count] = bitValue;
+          Serial.print(data[count]);
+        }
+        else if (bit_stuff_error == 1 && count < data_length) {     //Verifica se ocorreu um erro enquanto esta lendo os dados
+          statesDecoder = ERROR_FLAG;
+          Serial.print("\nError Flag: ");
+        }
 
-      //Serial.println(data_length);
-      if (count < data_length && bit_stuff == 0 && bit_stuff_error == 0) {
-        data[count] = bitValue;
-        Serial.print(data[count]);
-      }
-      else if (bit_stuff_error == 1 && count < data_length) {     //Verifica se ocorreu um erro enquanto esta lendo os dados
-        statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: ");
-      }
-
-      count ++;
-      //Se o tamanho dos dados forem menor que 8 ignora os proximo bit ate mudar de estados
-      if (count == data_length) {
-        statesDecoder = CRC;
-        Serial.println("");
-        Serial.print("CRC: ");
-        count = 0;
+        count ++;
+        //Se o tamanho dos dados forem menor que 8 ignora os proximo bit ate mudar de estados
+        if (count == data_length) {
+          statesDecoder = CRC;
+          Serial.println("");
+          Serial.print("CRC: ");
+          count = 0;
+        }
       }
       break;
     case CRC:
       enable_crc = 0;
       bitStuff(bitValue);
+      if(!bit_stuff){
+        //      Serial.println(count);
+        if (count < 14 && bit_stuff == 0 && bit_stuff_error == 0) {
+          crc[count] = bitValue;
+          Serial.print(crc[count]);
+          count++;
+        }
+        else if (count == 14 && bit_stuff == 0 && bit_stuff_error == 0) {
+          crc[count] = bitValue;
+          Serial.println(crc[count]);
 
-      //      Serial.println(count);
-      if (count < 14 && bit_stuff == 0 && bit_stuff_error == 0) {
-        crc[count] = bitValue;
-        Serial.print(crc[count]);
-        if(crc[count] != crc_check[count] ){
-          //Serial.println("crc count: " + String(crc[count]) + " crc_check:" + String(crc_check[count]));
-          statesDecoder = ERROR_FLAG;
-          Serial.print("Error Flag: ");
-      }
-       
-        count++;
-      }
-      else if (count == 14 && bit_stuff == 0 && bit_stuff_error == 0) {
-        crc[count] = bitValue;
-        Serial.println(crc[count]);
-        statesDecoder = CRC_DELIMITER;
-        if(crc[count] != crc_check[count] ){
-          //Serial.println("crc count: " + String(crc[count]) + " crc_check:" + String(crc_check[count]));
-          statesDecoder = ERROR_FLAG;
-          Serial.print("Error Flag: ");
-      }
-        bit_stuff_enable = 0;         //desabilita a verificacao do bitStuff
-        count = 0;
+          statesDecoder = CRC_DELIMITER;
+          bit_stuff_enable = 0;         //desabilita a verificacao do bitStuff
+          count = 0;
+        }
+        
       }
       break;
     case CRC_DELIMITER:
@@ -690,14 +604,20 @@ void decoderLogic(uint8_t bitValue) {
       }
       else {
         statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: ");
+        Serial.print("\nError Flag: ");
       }
       break;
     case ACK_SLOT:
       ack_slot = bitValue;
        Serial.print("ACK_SLOT: ");
        Serial.println(ack_slot);
-      statesDecoder = ACK_DELIMITER;
+      if(bitValue == 1){
+         statesDecoder = ERROR_FLAG;
+         Serial.print("\nError Flag: ");
+      }
+      else{
+        statesDecoder = ACK_DELIMITER;
+      }
           
       //busWrite(0);
 
@@ -706,6 +626,11 @@ void decoderLogic(uint8_t bitValue) {
       ack_delimiter = bitValue;
       Serial.print("ACK_DELIMITER: ");
       Serial.println(ack_delimiter);
+       if(crc[count] != crc_check[count] ){
+          //Serial.print("CRC DIFERENTE");
+          statesDecoder = ERROR_FLAG;
+           Serial.print("\nError Flag: ");
+          }     
       if (ack_delimiter == 1) {
         statesDecoder = OEF;
         Serial.print("OEF: ");
@@ -713,7 +638,7 @@ void decoderLogic(uint8_t bitValue) {
       }
       else {
         statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: ");
+        Serial.print("\nError Flag: ");
       }
       break;
     case OEF:
@@ -732,7 +657,7 @@ void decoderLogic(uint8_t bitValue) {
       }
       else {
         statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: ");
+        Serial.print("\nError Flag: ");
       }
       break;
     case IFS:
@@ -750,10 +675,12 @@ void decoderLogic(uint8_t bitValue) {
       else if (bitValue == 0) {
         count = 0;
         statesDecoder = OVERLOAD_FLAG;
+        Serial.print("\nOverloadFLAG: ");
       }
       break;
 
     case ERROR_FLAG:
+      i--;
       if ( er_count < 5) {
         er_count++;
         busWrite(0);
@@ -761,94 +688,112 @@ void decoderLogic(uint8_t bitValue) {
       else if ( er_count == 5) {
                    busWrite(0);
         statesDecoder = ERROR_FLAG2;
+        Serial.println("");
         Serial.print("Error Flag2: ");
       }
       break;
     case ERROR_FLAG2:
-
-      if (WP == 1 && digitalRead(RX_PIN) == 1) {
+      if ( bitValue == 1) {
         statesDecoder = ERROR_DELIMITER;
-        count = 0;
-      }
-      else if (WP == 1 && digitalRead(RX_PIN) == 0 && er_count < 11) {
-                   busWrite(0);
-        er_count++;
+        Serial.println("");
+        Serial.print("Erro Delimiter: ");
+        count = 1;
       }
       else if (er_count == 11) {
         statesDecoder = ERROR_DELIMITER;
+        Serial.println("");
+        Serial.print("Erro Delimiter: ");
+
         count = 0;
       }
+      else if ( bitValue == 0 && er_count < 11) {
+                   busWrite(0);
+        er_count++;
+      }
+     
       break;
     case ERROR_DELIMITER:
-
-      if (WP == 1 && count < 7) {
-         
+      i--;
+      if (count < 7) {
+        er_count = 0;
         busWrite(1);
         count++;
       }
-      else if (WP == 1 && count == 7) {
+      else if (count == 7) {
          
         busWrite(1);
+        Serial.println("");
+        Serial.print("IFS: ");
+        i = LENGTHFRAME;
         statesDecoder = IFS;
+        count = 0;
       }
       break;
 
     case OVERLOAD_FLAG:
-      if (WP == 1 && over_count < 5) {
-        over_count++;
-
-             
-         busWrite(0);
+      if (over_count < 5) {
+        over_count++; 
+        busWrite(0);
       }
-      else if (WP == 1 && over_count == 5) {
+      else if (over_count == 5) {
          
          busWrite(0);
         statesDecoder = OVERLOAD_FLAG2;
+        Serial.print("\nOverloadFLAG2: ");
       }
       break;
     case OVERLOAD_FLAG2:
 
-      if (WP == 1 && digitalRead(RX_PIN) == 1) {
+      if ( bitValue == 1) {
         statesDecoder = OVERLOAD_DELIMITER;
-        count = 0;
+         Serial.print("\nOverloaddELIMITER: ");
+        count = 1;
       }
-      else if (WP == 1 && digitalRead(RX_PIN) == 0 && er_count < 11) {
+      else if (bitValue == 0 && over_count < 11) {
          
          busWrite(0);
-        er_count++;
+         over_count++;
       }
-      else if (er_count == 11) {
+      else if (over_count == 11) {
          
          busWrite(0);
-        statesDecoder = ERROR_DELIMITER;
+        statesDecoder = OVERLOAD_DELIMITER;
         count = 0;
       }
       break;
     case OVERLOAD_DELIMITER:
 
-      if (WP == 1 && count < 7) {
-         
+      if ( count < 7) {
+        over_count=0;
         busWrite(1);
 
         count++;
       }
-      else if (WP == 1 && count == 7) {
+      else if ( count == 7) {
          
         busWrite(1);
 
         statesDecoder = IFS;
+        Serial.print("\nIFS: ");
+        count = 0;
       }
       break;
-  }
+    }
   if(enable_crc == 1 && !bit_stuff){
     crc_calculator(bitValue);
+  }
+  if(bit_stuff){
+    //Serial.print("!"+ String(bit_stuff_value) + "!");
+    bitStuff(bit_stuff_value);
+    
   }
 }
 
 void encoderLogic(uint8_t bitValue) {
-  switch (statesDecoder) {
+  switch (statesEncoder) {
     case START_D:
 
+      Serial.print("\nSTART_E: ");
       enable_crc = 1;
       resetCRC();
       //Serial.println("Entrou");
@@ -860,9 +805,10 @@ void encoderLogic(uint8_t bitValue) {
       er_count = 0;
       bit_stuff_enable = 0;
       
-      busWrite(0);
+      busWrite(bitValue);
 
-      statesDecoder = ID;
+      statesEncoder = ID;
+      Serial.print("\nID: ");
       bit_stuff_enable = 1;
       bitStuff(bitValue);
       start_d = bitValue;
@@ -874,15 +820,18 @@ void encoderLogic(uint8_t bitValue) {
       bitStuff(bitValue);
       if (bit_stuff) {
         busWrite(bit_stuff_value); //VERIFICAR COMO RECOMEÇAR DO MESMO BITVALUE
+        i--;
       }
       else {
         if (count < 10 && bit_stuff == 0) {
           busWrite(bitValue);
+          id[count] = bitValue;
           count++;
         }
         else if (count == 10 && bit_stuff == 0) {
-          statesDecoder = RTR_SRR;
+          statesEncoder = RTR_SRR;
           busWrite(bitValue);
+          id[count] = bitValue;
           Serial.print(" ");
           count++;
         }
@@ -891,39 +840,49 @@ void encoderLogic(uint8_t bitValue) {
       break;
     case RTR_SRR:
       bitStuff(bitValue);
-      arbitration = 0; //desabilita arbitração
+      
+      Serial.print("\nRTR_SRR: ");
       if(bit_stuff){
-        busWrite(bit_stuff_value);
+        busWrite(bit_stuff_value);     //VERIFICAR COMO RECOMEÇAR DO MESMO BITVALUE
+        i--;
       }
       else{
         rtr_srr = bitValue;
-        statesDecoder = IDE;
+        statesEncoder = IDE;
         busWrite(bitValue);
       }
       break;
     case IDE:
       bitStuff(bitValue);
+
+      Serial.print("\nIDE: ");
       if(bit_stuff){
         busWrite(bit_stuff_value);
+        i--;
       }
       else{
+        arbitration = 0;
         ide = bitValue;
         busWrite(bitValue);
         count = 0;
 
         if (ide == 1) {
-          statesDecoder = ID_EXTEND;
+          statesEncoder = ID_EXTEND;
+          Serial.print("\nID_EXTEND: ");
         }
         else {
-          statesDecoder = R0;
+          statesEncoder = R0;
         }
       }
       break;
     case ID_EXTEND:
       bitStuff(bitValue);
       arbitration = 1;
+
+      
       if(bit_stuff){
         busWrite(bit_stuff_value);
+        i--;
       }
       else if (count < 17) {
         busWrite(bitValue);
@@ -931,49 +890,56 @@ void encoderLogic(uint8_t bitValue) {
       }
       else if (count == 17) {
         busWrite(bitValue);
-        statesDecoder = RTR_EXTEND;
+        statesEncoder = RTR_EXTEND;
         Serial.print(" ");
       }
       break;
     case RTR_EXTEND:
+      Serial.println("\nRTR_Extend: ");
       arbitration = 0;
       bitStuff(bitValue);
       if(bit_stuff){
         busWrite(bit_stuff_value);
+        i--;
       }
       else{
         busWrite(bitValue);
         rtr_extend = bitValue;
-        statesDecoder = R1;
+        statesEncoder = R1;
       }
       break;
     case R1:
       bitStuff(bitValue);
+      Serial.print("\nR1: ");
       if(bit_stuff){
         busWrite(bit_stuff_value);
+        i--;
       }
       else{
         r1 = bitValue;
         busWrite(bitValue);
-        statesDecoder = R0;
+        statesEncoder = R0;
       }
       break;
     case R0:
+      Serial.print("\nR0: ");
       bitStuff(bitValue);
       if(bit_stuff){
         busWrite(bit_stuff_value);
+        i--;
       }
       else{
         busWrite(bitValue);
         count = 0;
-        statesDecoder = DLC;
-        Serial.print(" ");
+        statesEncoder = DLC;
+        Serial.print("\nDLC: ");
       }
       break;
     case DLC:
       bitStuff(bitValue);
       if(bit_stuff){
         busWrite(bit_stuff_value);
+        i--;
       }
       else if (count <= 3) {
         dlc[count] = bitValue;
@@ -993,207 +959,233 @@ void encoderLogic(uint8_t bitValue) {
         //Serial.print("Tamanho dos dados: ");
         //Serial.print(data_length);
 
-        if (/*count == 3 &&*/ ( (rtr_srr == 1 && ide == 0) || (ide == 1 && rtr_extend == 1) ) || data_length == 0 ) {
-          statesDecoder = CRC;
-          count = 0;
-          Serial.print(" ");
-        }
-        else {
-          statesDecoder = DATA;
-          count = 0;
-          Serial.print(" ");
-        }
+        if ((/*count == 3 &&*/ ( (rtr_srr == 1 && ide == 0) || (ide == 1 && rtr_extend == 1) ) || data_length == 0) ) {
+              statesEncoder = CRC;
+              Serial.print("CRC: ");
+              count = 0;
+            }
+            else {
+              statesEncoder = DATA;
+              Serial.print("\nDATA: ");
+              count = 0;
+            }
       }
       break;
     case DATA:
       bitStuff(bitValue);
       if(bit_stuff){
         busWrite(bit_stuff_value);
+        i--;
       }
       if (count < data_length && bit_stuff == 0 && bit_stuff_error == 0) {
         busWrite(bitValue);
         count ++;
       }
       else if (bit_stuff_error == 1 && count < data_length) {     //Verifica se ocorreu um erro enquanto esta lendo os dados
-        statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: ");
+        statesEncoder = ERROR_FLAG;
+        Serial.print("\nError Flag: ");
         count = 0;
       }
       
 
       //Se o tamanho dos dados forem menor que 8 ignora os proximo bit ate mudar de estados
       if (count == data_length) {
-        statesDecoder = CRC;
+        statesEncoder = CRC;
+        Serial.println("");
+        Serial.print("CRC: ");
         count = 0;
-        Serial.print(" ");
+
       }
       break;
     case CRC:
       enable_crc = 0;
       bitStuff(bitValue);
       if(bit_stuff){
-        busWrite(bit_stuff_value);
-        Serial.print("*");
         bitStuff(bit_stuff_value);  //o bit de bit stuff tambem conta para o novo bitstuff
         i--;//se tiver realizado o bitstuff o encoder nao deve avançar no frame
       }
       else if (count < 14) {
-        busWrite(bitValue);
+        busWrite(crc_check[count]);
         count++;
       }
       else if (count == 14) {
-        busWrite(bitValue);
-        statesDecoder = CRC_DELIMITER;
+        busWrite(crc_check[count]);
+        statesEncoder = CRC_DELIMITER;
         bit_stuff_enable = 0;         //desabilita a verificacao do bitStuff
         count = 0;
         Serial.print(" ");
       }
       break;
     case CRC_DELIMITER:
-      busWrite(crc_delimiter);
-      statesDecoder = ACK_SLOT;
+      Serial.print("\nCRC_Delimiter");
+      busWrite(1);
+      statesEncoder = ACK_SLOT;
       break;
     case ACK_SLOT:
-      busWrite(bitValue);
-      statesDecoder = ACK_DELIMITER;
+      Serial.print("\nAck_Slot: ");
+      busWrite(1);
+      statesEncoder = ACK_DELIMITER;
       break;
     case ACK_DELIMITER:
-      busWrite(ack_delimiter);
-      statesDecoder = OEF;
+      Serial.print("\nAckDelimiter: ");
+      busWrite(1);
+      statesEncoder = OEF;
+      Serial.print("\nEOF: ");
       count = 0;
-      Serial.print(" ");
       break;
     case OEF:
-      if (bitValue == 1 && count < 6) {
-        busWrite(bitValue);
+      if ( count < 6) {
+        busWrite(1);
         count++;
       }
-      else if (bitValue == 1 && count == 6) {
+      else if ( count == 6) {
         busWrite(bitValue);
-        statesDecoder = IFS;
-        Serial.print(" ");
+        statesEncoder = IFS;
+        Serial.print("\nIFS: ");
         count = 0;
-      }
-      else {
-        statesDecoder = ERROR_FLAG;
-        Serial.print("Error Flag: "); 
       }
       break;
     case IFS:
-      if (count < 2 && bitValue == 1) {
-        busWrite(ifs[count]);
+      if (count < 2) {
+        busWrite(1);
         count++;
       }
-      if (count == 2 && bitValue == 1) {
+      if (count == 2) {
         busWrite(ifs[count]);
         idle = 1;
-        statesDecoder = START_D;
+        statesEncoder = START_D;
         count = 0;
-        Serial.print(" ");
       }
       else if (bitValue == 0) {
         count = 0;
-        statesDecoder = OVERLOAD_FLAG;
+        statesEncoder = OVERLOAD_FLAG;
       }
       Serial.println("");
       break;
 
+
+
     case ERROR_FLAG:
-      if (WP == 1 && er_count < 5) {
+      i--;
+      if ( er_count < 5) {
         er_count++;
         busWrite(0);
       }
-      else if (WP == 1 && er_count == 5) {
-        busWrite(0);
+      else if ( er_count == 5) {
+                   busWrite(0);
         statesDecoder = ERROR_FLAG2;
-        }
+        Serial.println("");
+        Serial.print("Error Flag2: ");
+      }
       break;
     case ERROR_FLAG2:
-
-      if (WP == 1 && digitalRead(RX_PIN) == 1) {
+      if ( bitValue == 1) {
         statesDecoder = ERROR_DELIMITER;
-        count = 0;
-      }
-      else if (WP == 1 && digitalRead(RX_PIN) == 0 && er_count < 11) {
-        busWrite(0);
-        er_count++;
+        Serial.println("");
+        Serial.print("Erro Delimiter: ");
+        count = 1;
       }
       else if (er_count == 11) {
         statesDecoder = ERROR_DELIMITER;
+        Serial.println("");
+        Serial.print("Erro Delimiter: ");
+
         count = 0;
       }
+      else if ( bitValue == 0 && er_count < 11) {
+                   busWrite(0);
+        er_count++;
+      }
+     
       break;
     case ERROR_DELIMITER:
-
+      i--;
       if (count < 7) {
          
         busWrite(1);
         count++;
       }
-      else if ( count == 7) {
+      else if (count == 7) {
          
         busWrite(1);
+        Serial.println("");
+        Serial.print("IFS: ");
+        i = LENGTHFRAME;
         statesDecoder = IFS;
+        count = 0;
       }
       break;
 
     case OVERLOAD_FLAG:
-      if (WP == 1 && over_count < 5) {
-        over_count++;           
-         busWrite(0);
+      if (over_count < 5) {
+        over_count++; 
+        busWrite(0);
       }
-      else if (WP == 1 && over_count == 5) {
+      else if (over_count == 5) {
+         
          busWrite(0);
         statesDecoder = OVERLOAD_FLAG2;
+        Serial.print("\nOverloadFLAG2: ");
       }
       break;
     case OVERLOAD_FLAG2:
 
-      if (WP == 1 && digitalRead(RX_PIN) == 1) {
+      if ( bitValue == 1) {
         statesDecoder = OVERLOAD_DELIMITER;
-        count = 0;
+         Serial.print("\nOverloaddELIMITER: ");
+        count = 1;
       }
-      else if (WP == 1 && digitalRead(RX_PIN) == 0 && er_count < 11) {
+      else if (bitValue == 0 && er_count < 11) {
          
          busWrite(0);
         er_count++;
       }
       else if (er_count == 11) {
-        busWrite(0);
-        statesDecoder = ERROR_DELIMITER;
+         
+         busWrite(0);
+        statesDecoder = OVERLOAD_DELIMITER;
         count = 0;
       }
       break;
     case OVERLOAD_DELIMITER:
 
-      if (WP == 1 && count < 7) { 
+      if ( count < 7) {
+         
         busWrite(1);
 
         count++;
       }
-      else if (WP == 1 && count == 7) {
+      else if ( count == 7) {
          
         busWrite(1);
 
         statesDecoder = IFS;
+        Serial.print("\nIFS: ");
+        count = 0;
       }
       break;
-  }
+    }
   if(enable_crc == 1 && !bit_stuff){
     crc_calculator(bitValue);
+    Serial.print("foi");
   }
-}
+  if(bit_stuff){
+    //Serial.print("!"+ String(bit_stuff_value) + "!");
+    bitStuff(bit_stuff_value);
+    
+  }
+ }
 
 
 
 
-void setup(void)
-{
+
+
+void setup(void){
   Timer1.initialize(TIME_INTR);
   Timer1.attachInterrupt(updateTQ);
 
   attachInterrupt(digitalPinToInterrupt(RX_PIN), fallingEdgeDetector, FALLING);
-  //  attachInterrupt(digitalPinToInterrupt(IDLE_PIN), idleDetector, RISING);
 
   pinMode(HSYNC_PIN, OUTPUT);
   pinMode(STATE0_PIN, OUTPUT);
@@ -1203,111 +1195,24 @@ void setup(void)
   pinMode(IDLE_PIN, INPUT);
   pinMode(TX_PIN, OUTPUT);
   Serial.begin(9600);
+  i=0;
+
 }
 
-
-
 void loop(void){
-//  uint8_t value =0;     //teste
-//  if(newBitValue){
-//    decoderLogic(bitReaded);
-//    newBitValue = 0;
-//  }
-//  if(idle || transmission_enable){
-//    idle = 0;
-//    encoderLogic(value);
-//  }
-//
-//  if(newWriteData && WP){
-//    digitalWrite(TX_PIN, busWrite_value);
-//    newWriteData = 0;
-//    if(arbitration && busWrite_value != digitalRead(RX_PIN)){
-//      transmission_enable = 0;
-//      arbitration = 0;
-//    }
-//    else if (busWrite_value != digitalRead(RX_PIN)){
-//      statesDecoder = ERROR_FLAG;
-//    }
-//  }
+  /*uint8_t a[]= {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
+  if(i<15) bitStuff(a[i++]);
+  bit_stuff_enable = 1;
+  */
+
+
 
   
   //Teste frame com melhor caso
-  uint8_t can_stand[LENGTHFRAME] = {0,1,1,0,0,1,1,1,0,0,1,0,0,0,0,0,1,1,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,1,0,0,1,0,0,1,0,1,1,1,0,1,0,1,1,1,1,1,1,1,1};
-  //uint8_t can_stand[LENGTHFRAME] = {0,1,1,0,0,1,1,1,0,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1,1,0,1,1,1,1,1,1,1,1};
-  if (i < LENGTHFRAME) {
+  //uint8_t can_stand[] = {0,1,0,0,0,1,0,0,1,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,1,1,1,0,0,0,1,1,0,1,0,0,1,0,1,1,1,1,1,1,1,1};
+  uint8_t can_stand[] = {0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1,0,0,0,0,1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,1};
+  if (i < sizeof(can_stand)/sizeof(can_stand[0])) {
     decoderLogic(can_stand[i++]);
-//    crc_calculator(can_stand[i]);
-//
-//    //    decoderLogic(can_extend[i]);
-  }
-  if(i == LENGTHFRAME){
-    Serial.println("");
-    Serial.print("crc_check: ");
-    for(int k=0; k < 15;k++){
-      Serial.print(crc_check[k]);
-    }
-    i++;
-  }
-  
-  // i++;
-//  for(int i=0; i < 83;i++){
-//     crc_calculator(can_stand[i]);
-//  }
-//
 
-//  Serial.println();
-
-//  resetCRC();
-  
-/*
-  //Serial.println("Soma: " + String(soma));
-    uint8_t teste[12] = {0,0,0,0,0,1,1,0,0,1,0};
-    statesBitStuff = 1;        Teste da Maquina de estados do bit stuff
-    for(int i=0;i<12; i++){
-    bitStuff(teste[i]);
-
-    Serial.print("frame: ");
-    Serial.print(teste[i]);
-    Serial.print(", bitValue: ");
-    Serial.print(bit_stuff_value);
-    Serial.print(", Error: ");
-    Serial.print(bit_stuff_error);
-    Serial.print(", count1: ");
-    Serial.print(count1);
-    Serial.print(", count0: ");
-    Serial.print(count0);
-    Serial.print(", estados: ");
-    Serial.print(statesBitStuff);
-    Serial.print(", bit_stuff: ");
-    Serial.println(bit_stuff);
-
-
-    }
-    /*
-    idle = digitalRead(IDLE_PIN);
-
-    Serial.print(hsValue);
-    Serial.print(" ");
-
-    Serial.print(ssValue + 2);
-    Serial.print(" ");
-
-
-    Serial.print(tqValue + 4);
-    Serial.print(" ");
-
-    Serial.print(STATE0 + 8);
-    Serial.print(" ");
-
-    Serial.print(sample_point + 10);
-    Serial.print(" ");
-
-    Serial.print(WP + 12);
-    Serial.print(" ");
-
-    Serial.println(STATE1 + 6);
-
-
-
-    btlLogic();*/
+  } 
 }
