@@ -419,10 +419,10 @@ void decoderLogic(uint8_t bitValue) {
         bit_stuff_enable = 0;
       }
       else {
-        Serial.print("\nStart: "); //print
+        Serial.print("\nStart_D: "); //print
         Serial.println(start_d);  //print
         statesDecoder = ID;
-        Serial.print("ID: "); //print
+        Serial.print("ID_D: "); //print
         bit_stuff_enable = 1;
         bitStuff(bitValue);
         start_d = bitValue;
@@ -454,7 +454,7 @@ void decoderLogic(uint8_t bitValue) {
       break;
     case RTR_SRR:
       bitStuff(bitValue);
-      Serial.print("RTR_SRR: "); //print
+      Serial.print("RTR_SRR_D: "); //print
       if (bit_stuff == 0 && bit_stuff_error == 0) {
         statesDecoder = IDE;
         rtr_srr = bitValue;
@@ -467,7 +467,7 @@ void decoderLogic(uint8_t bitValue) {
       break;
     case IDE:
       bitStuff(bitValue);
-      Serial.print("IDE: "); //print
+      Serial.print("IDE_D: "); //print
       if (bit_stuff == 0 && bit_stuff_error == 0) {
         ide = bitValue;
         Serial.println(ide); //print
@@ -475,7 +475,7 @@ void decoderLogic(uint8_t bitValue) {
 
         if (ide == 1) {
           statesDecoder = ID_EXTEND;
-          Serial.print("ID_EXTEND: "); //print
+          Serial.print("ID_EXTEND_D: "); //print
         }
         else {
           statesDecoder = R0;
@@ -506,7 +506,7 @@ void decoderLogic(uint8_t bitValue) {
       break;
     case RTR_EXTEND:
       bitStuff(bitValue);
-      Serial.print("RTR_EXTEND: "); // print
+      Serial.print("RTR_EXTEND_D: "); // print
       if (bit_stuff == 0 && bit_stuff_error == 0) {
         rtr_extend = bitValue;
         Serial.println(rtr_extend); //print
@@ -521,7 +521,7 @@ void decoderLogic(uint8_t bitValue) {
       bitStuff(bitValue);
 
       if (bit_stuff == 0 && bit_stuff_error == 0) {
-        Serial.print("R1: ");
+        Serial.print("R1_D: ");
         Serial.println(r1);
         r1 = bitValue;
         statesDecoder = R0;
@@ -538,7 +538,7 @@ void decoderLogic(uint8_t bitValue) {
         r0 = bitValue;
         count = 0;
         statesDecoder = DLC;
-        Serial.print("R0: ");
+        Serial.print("R0_D: ");
         Serial.println(r0);
         Serial.print("DLC: ");
       }
@@ -853,7 +853,7 @@ void encoderLogic(uint8_t bitValue) {
       busWrite(bitValue);
 
       statesEncoder = ID;
-      Serial.print("\nID: ");
+      Serial.print("\nID_E: ");
       bit_stuff_enable = 1;
       bitStuff(bitValue);
       start_d = bitValue;
@@ -886,7 +886,7 @@ void encoderLogic(uint8_t bitValue) {
     case RTR_SRR:
       bitStuff(bitValue);
       
-      Serial.print("\nRTR_SRR: ");
+      Serial.print("\nRTR_SRR_E: ");
       if(bit_stuff){
         busWrite(bit_stuff_value);     //VERIFICAR COMO RECOMEÇAR DO MESMO BITVALUE
         i--;
@@ -900,7 +900,7 @@ void encoderLogic(uint8_t bitValue) {
     case IDE:
       bitStuff(bitValue);
 
-      Serial.print("\nIDE: ");
+      Serial.print("\nIDE_E: ");
       if(bit_stuff){
         busWrite(bit_stuff_value);
         i--;
@@ -913,7 +913,7 @@ void encoderLogic(uint8_t bitValue) {
 
         if (ide == 1) {
           statesEncoder = ID_EXTEND;
-          Serial.print("\nID_EXTEND: ");
+          Serial.print("\nID_EXTEND_E: ");
         }
         else {
           statesEncoder = R0;
@@ -940,7 +940,7 @@ void encoderLogic(uint8_t bitValue) {
       }
       break;
     case RTR_EXTEND:
-      Serial.println("\nRTR_Extend: ");
+      Serial.println("\nRTR_Extend_E: ");
       arbitration = 0;
       bitStuff(bitValue);
       if(bit_stuff){
@@ -958,7 +958,7 @@ void encoderLogic(uint8_t bitValue) {
       decoder_enable = 0;
       statesDecoder = START_D;
 
-      Serial.print("\nR1: ");
+      Serial.print("\nR1_E: ");
       if(bit_stuff){
         busWrite(bit_stuff_value);
         i--;
@@ -970,7 +970,7 @@ void encoderLogic(uint8_t bitValue) {
       }
       break;
     case R0:
-      Serial.print("\nR0: ");
+      Serial.print("\nR0_E: ");
       bitStuff(bitValue);
       if(bit_stuff){
         busWrite(bit_stuff_value);
