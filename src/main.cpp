@@ -3,7 +3,7 @@
 
 #include <TimerOne.h>
 
-#define TIME_INTR 100000
+#define TIME_INTR 5000
 #define SJW 4
 #define TSEG1 8
 #define TSEG2 15
@@ -70,7 +70,7 @@ uint8_t arbitration=0,newBitValue=0, newWriteDataFlag=0, bitReaded, rValue, newB
 uint8_t sample_pointFlag, WPFlag, diff_rx_tx;
 
 //Variaveis Testte
-uint8_t can_stand[] = {0,1,0,0,0,1,0,0,1,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,1,1,1,0,0,0,1,1,0,1,0,0,1,0,1,1,1,1,1,1,1,1};
+uint8_t can_stand[] = {0,1,1,0,0,1,1,1,0,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1,0,0,0,0,1,0,1,0,0,0,1,1,0,1,1,1,1,1,1,1,1};
 
 void busWrite(uint8_t value){
   newBitValue = 1;
@@ -92,7 +92,12 @@ void readAndWriteBus(){
   }
   if(sample_point){
     //busReadValue = digitalRead(RX_PIN);
-    busReadValue = can_stand[i++];
+    if (i<sizeof(can_stand)/sizeof(can_stand[0])) {
+      busReadValue = can_stand[i++];
+    }
+    else{
+      busReadValue = 1;
+    }
     sample_point = 0;
     sample_pointFlag = 1;
     if(busReadValue == busWriteValue){
@@ -648,7 +653,7 @@ void decoderLogic(uint8_t bitValue) {
     case ACK_SLOT:
       ack_slot = bitValue;
        Serial.print("ACK_SLOT: ");
-       Serial.println(ack_slot);
+       busWrite(0);
       
       // if(bitValue == 1){
       //    statesDecoder = ERROR_FLAG;
@@ -659,7 +664,7 @@ void decoderLogic(uint8_t bitValue) {
         count = 0;
      // }
           
-      busWrite(0);
+      
 
       break;
     case ACK_DELIMITER:
@@ -1253,10 +1258,10 @@ void loop(void){
   }
   btlLogic();
   readAndWriteBus();
-  if(encoder_enable && WPFlag){
-    encoderLogic(i);
-    WPFlag = 0;
-  }
+  // if(encoder_enable && WPFlag){
+  //   encoderLogic(i);
+  //   WPFlag = 0;
+  // }
   if(decoder_enable && sample_pointFlag){
     decoderLogic(busReadValue);
     sample_pointFlag = 0;
