@@ -32,7 +32,7 @@ enum StatesBitStuff {START, READ0, READ1, BIT_STUFF};
 StatesBitStuff statesBitStuff;
 
 enum StatesDecoder {START_D, ID, RTR_SRR, IDE, ID_EXTEND, RTR_EXTEND, R1, R0, DLC, DATA, CRC,
-                    CRC_DELIMITER, ACK_SLOT, ACK_DELIMITER, OEF, IFS, ERROR_FLAG, ERROR_FLAG2, ERROR_DELIMITER,
+                    CRC_DELIMITER, ACK_SLOT, ACK_DELIMITER, ENDOF, IFS, ERROR_FLAG, ERROR_FLAG2, ERROR_DELIMITER,
                     OVERLOAD_FLAG, OVERLOAD_FLAG2, OVERLOAD_DELIMITER
                    };
 StatesDecoder statesDecoder, statesEncoder;
@@ -56,13 +56,13 @@ uint8_t count1;
 //variaveis para o decoder
 uint8_t count = 0, over_count = 0, er_count = 0, data_length;
 uint8_t start_d, rtr_srr, ide, r0, rtr_extend, r1, crc_delimiter, ack_delimiter, ack_slot;
-uint8_t id[11], id_extend[18], dlc[4], data[64], crc[15], oef[7], ifs[3], error_enable, overload_enable, busWrite_value, decoder_enable=0;
+uint8_t id[11], id_extend[18], dlc[4], data[64], crc[15], endof[7], ifs[3], error_enable, overload_enable, busWrite_value, decoder_enable=0;
 
 
 //variaveis para o encoder
 uint8_t arbitration=0,newBitValue=0, newWriteData=0, bitReaded;
 //Variaveis para o crc
-uint8_t crc_check[15], enable_crc, transmission_enable;
+uint8_t crc_check[15], enable_crc, transmission_enable, crc_error;
 
 void busWrite(uint8_t value){
   newWriteData = 1;
@@ -362,14 +362,11 @@ void bitStuff(uint8_t bitValue) {
 
  
 
-
-
 //implementacao da Maquina de estados do decoder
 void decoderLogic(uint8_t bitValue) {
 
   switch (statesDecoder) {
     case START_D:
-      Serial.print("Start: "); //print
       enable_crc = 1;
       resetCRC();
 
@@ -380,6 +377,7 @@ void decoderLogic(uint8_t bitValue) {
         bit_stuff_enable = 0;
       }
       else {
+        Serial.print("\nStart: "); //print
         Serial.println(start_d);  //print
         statesDecoder = ID;
         Serial.print("ID: "); //print
@@ -581,6 +579,9 @@ void decoderLogic(uint8_t bitValue) {
         if (count < 14 && bit_stuff == 0 && bit_stuff_error == 0) {
           crc[count] = bitValue;
           Serial.print(crc[count]);
+          if(crc_check[count] != crc[count] ) {
+            crc_error = 1;
+          }
           count++;
         }
         else if (count == 14 && bit_stuff == 0 && bit_stuff_error == 0) {
@@ -611,29 +612,31 @@ void decoderLogic(uint8_t bitValue) {
       ack_slot = bitValue;
        Serial.print("ACK_SLOT: ");
        Serial.println(ack_slot);
-      if(bitValue == 1){
-         statesDecoder = ERROR_FLAG;
-         Serial.print("\nError Flag: ");
-      }
-      else{
+      
+      // if(bitValue == 1){
+      //    statesDecoder = ERROR_FLAG;
+      //    Serial.print("\nError Flag: ");
+      // }
+      // else{
         statesDecoder = ACK_DELIMITER;
-      }
+        count = 0;
+     // }
           
-      //busWrite(0);
+      busWrite(0);
 
       break;
     case ACK_DELIMITER:
       ack_delimiter = bitValue;
       Serial.print("ACK_DELIMITER: ");
       Serial.println(ack_delimiter);
-       if(crc[count] != crc_check[count] ){
-          //Serial.print("CRC DIFERENTE");
+       if(crc_error == 1){
+          // Serial.print("CRC DIFERENTE");
           statesDecoder = ERROR_FLAG;
            Serial.print("\nError Flag: ");
           }     
-      if (ack_delimiter == 1) {
-        statesDecoder = OEF;
-        Serial.print("OEF: ");
+      else if (ack_delimiter == 1) {
+        statesDecoder = ENDOF;
+        Serial.print("ENDOF: ");
         count = 0;
       }
       else {
@@ -641,16 +644,16 @@ void decoderLogic(uint8_t bitValue) {
         Serial.print("\nError Flag: ");
       }
       break;
-    case OEF:
+    case ENDOF:
 
       if (bitValue == 1 && count < 6) {
-        oef[count] = bitValue;
-        Serial.print(oef[count]);
+        endof[count] = bitValue;
+        Serial.print(endof[count]);
         count++;
       }
       else if (bitValue == 1 && count == 6) {
-        oef[count] = bitValue;
-        Serial.println(oef[count]);
+        endof[count] = bitValue;
+        Serial.println(endof[count]);
         statesDecoder = IFS;
         Serial.print("IFS: ");
         count = 0;
@@ -680,7 +683,7 @@ void decoderLogic(uint8_t bitValue) {
       break;
 
     case ERROR_FLAG:
-      i--;
+      
       if ( er_count < 5) {
         er_count++;
         busWrite(0);
@@ -713,7 +716,7 @@ void decoderLogic(uint8_t bitValue) {
      
       break;
     case ERROR_DELIMITER:
-      i--;
+      
       if (count < 7) {
         er_count = 0;
         busWrite(1);
@@ -724,7 +727,6 @@ void decoderLogic(uint8_t bitValue) {
         busWrite(1);
         Serial.println("");
         Serial.print("IFS: ");
-        i = LENGTHFRAME;
         statesDecoder = IFS;
         count = 0;
       }
@@ -766,7 +768,6 @@ void decoderLogic(uint8_t bitValue) {
       if ( count < 7) {
         over_count=0;
         busWrite(1);
-
         count++;
       }
       else if ( count == 7) {
@@ -788,6 +789,7 @@ void decoderLogic(uint8_t bitValue) {
     
   }
 }
+
 
 void encoderLogic(uint8_t bitValue) {
   switch (statesEncoder) {
@@ -1025,15 +1027,16 @@ void encoderLogic(uint8_t bitValue) {
       Serial.print("\nAck_Slot: ");
       busWrite(1);
       statesEncoder = ACK_DELIMITER;
+      count = 0;
       break;
     case ACK_DELIMITER:
       Serial.print("\nAckDelimiter: ");
       busWrite(1);
-      statesEncoder = OEF;
+      statesEncoder = ENDOF;
       Serial.print("\nEOF: ");
       count = 0;
       break;
-    case OEF:
+    case ENDOF:
       if ( count < 6) {
         busWrite(1);
         count++;
@@ -1066,7 +1069,7 @@ void encoderLogic(uint8_t bitValue) {
 
 
     case ERROR_FLAG:
-      i--;
+
       if ( er_count < 5) {
         er_count++;
         busWrite(0);
@@ -1099,7 +1102,7 @@ void encoderLogic(uint8_t bitValue) {
      
       break;
     case ERROR_DELIMITER:
-      i--;
+      
       if (count < 7) {
          
         busWrite(1);
@@ -1209,10 +1212,17 @@ void loop(void){
 
   
   //Teste frame com melhor caso
-  //uint8_t can_stand[] = {0,1,0,0,0,1,0,0,1,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,1,1,1,0,0,0,1,1,0,1,0,0,1,0,1,1,1,1,1,1,1,1};
-  uint8_t can_stand[] = {0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1,0,0,0,0,1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,1};
-  if (i < sizeof(can_stand)/sizeof(can_stand[0])) {
+  uint8_t can_stand[] = {0,1,1,0,0,1,1,1,0,0,1,0,0,0,0,1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0,0,0,0,1,0,0,0,0,1,0,1,0,0,0,1,1,0,1,1,1,1,1,1,1,1};
+  //uint8_t can_stand[] = {0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,0,1,1,0,0,0,0,1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,1};
+  if (i < sizeof(can_stand)/sizeof(can_stand[0]) ) {
     decoderLogic(can_stand[i++]);
 
-  } 
+  } else{
+    decoderLogic(1);
+  }
+
+  //for(int j = 0; j <15; j++){
+   // Serial.print(crc_check[j]);
+  //}
+ // Serial.println("");
 }
