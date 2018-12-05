@@ -123,7 +123,7 @@ void readAndWriteBus(){
 
 
 //Calcula o tamanho do campo de dados
-uint8_t numberOfData() {
+uint8_t numberOfData(boolean isDecoder) {
 
   uint8_t soma = 0;
   uint8_t pot=1;
@@ -134,7 +134,13 @@ uint8_t numberOfData() {
     for(int j=0;j < i; j++){
       pot = 2*pot;
     }
-    soma += dlc[3-i] * pot;
+    if(isDecoder){
+      soma += dlc[3-i] * pot;
+    }
+    else{
+      soma += dlc_e[3-i] * pot;
+    }
+    
   }
   
   if (soma > 8) {
@@ -651,7 +657,7 @@ void decoderLogic(uint8_t bitValue) {
             //          Serial.print("dlc: ");
             //          Serial.println(dlc[i]);
             //        }
-            data_length = numberOfData();
+            data_length = numberOfData(true);
             //        Serial.print("Tamanho dos dados: ");
             //        Serial.print(data_length);
 
@@ -1084,20 +1090,21 @@ void encoderLogic(uint8_t bitValue) {
         //          Serial.print("dlc: ");
         //          Serial.println(dlc[i]);
         //        }
-        data_length_e = numberOfData();
-        //Serial.print("Tamanho dos dados: ");
-        //Serial.print(data_length_e);
+        data_length_e = numberOfData(false);
+        // Serial.print("Tamanho dos dados: ");
+        // Serial.print(data_length_e);
 
-        if ((/*count_e == 3 &&*/ ( (rtr_srr_e == 1 && ide_e == 0) || (ide_e == 1 && rtr_extend == 1) ) || data_length_e == 0) ) {
-              statesEncoder = CRC;
-              Serial.print("CRC: ");
-              count_e = 0;
-            }
-            else {
-              statesEncoder = DATA;
-              Serial.print("\nDATA: ");
-              count_e = 0;
-            }
+        if ( ( (rtr_srr_e == 1 && ide_e == 0) || (ide_e == 1 && rtr_extend == 1) ) || data_length_e == 0)  {
+          Serial.println("Entrou");
+          statesEncoder = CRC;
+          Serial.print("CRC: ");
+          count_e = 0;
+        }
+        else {
+          statesEncoder = DATA;
+          Serial.print("\nDATA: ");
+          count_e = 0;
+        }
       }
       break;
     case DATA:
@@ -1121,7 +1128,7 @@ void encoderLogic(uint8_t bitValue) {
       break;
     case CRC:
       enable_crc = 0;
-      bitStuff_E(bitValue);
+      bitStuff_E(crc_check[count_e]);
       if(bit_stuff_E){
         bitStuff_E(bit_stuff_value_E);  //o bit de bit stuff tambem conta para o novo bitstuff
         j--;//se tiver realizado o bitstuff o encoder nao deve avançar no frame
@@ -1323,18 +1330,15 @@ void setup(void){
 
 void loop(void){
   if(idle){
-    decoder_enable = 1;
+    // decoder_enable = 1;
     encoder_enable = 1;
   }
   btlLogic();
   readAndWriteBus();
-<<<<<<< HEAD
-=======
   if(encoder_enable && WPFlag){
     encoderLogic(busWriteValue);
     WPFlag = 0;
   }
->>>>>>> 0a59aa0ca6422a53f656fc16d40ee1d9506943a8
   if(decoder_enable && sample_pointFlag){
     decoderLogic(busReadValue);
     sample_pointFlag = 0;
@@ -1364,10 +1368,10 @@ void loop(void){
   } else{
     decoderLogic(1);
   }
-
-  //for(int j = 0; j <15; j++){
-   // Serial.print(crc_check[j]);
-  //}
- // Serial.println("");
->>>>>>> cfcb45323f0c6a6ec9896ce3f392ad975e30f1b2*/
+*/
+  // for(int h = 0; h <15; h++){
+  //  Serial.print(crc_check[h]);
+  // }
+  // Serial.println("");
+/*>>>>>>> cfcb45323f0c6a6ec9896ce3f392ad975e30f1b2*/
 }
