@@ -49,7 +49,7 @@ byte hsValue = 0, tqValue = 0 , ssValue = 0, states = 0, STATE0 = 0, STATE1 = 0;
 
 
 //variaveis para o bitstuff
-uint8_t bit_stuff = 0, bit_stuff_value, bit_stuff_error = 0, bit_stuff_enable = 0;
+uint8_t bit_stuff = 0, bit_stuff_value, bit_stuff_error = 0, bit_stuff_enable = 0, bit_stuff_e;
 uint8_t count0;
 uint8_t count1;
 
@@ -65,6 +65,8 @@ uint8_t id[11], id_extend[18], dlc[4], data[64], crc[15], endof[7], ifs[3], erro
 
 
 //variaveis para o encoder
+uint8_t count_e = 0, data_length_e;
+uint8_t rtr_srr_e, ide_e, rtr_extend_e, dlc_e[4];
 uint8_t busWriteValue;
 //Variaveis para o crc
 
@@ -115,7 +117,7 @@ void readAndWriteBus(){
       diff_rx_tx = 1;
     }
   
-}
+  }
 }
   
 
@@ -441,9 +443,6 @@ void bitStuff_E(uint8_t bitValue_E) {
           statesBitStuff_E = BIT_STUFF;
           bit_stuff_E = 1;                  //indica a ocorrencia de um bit stuff
           bit_stuff_value_E = 1;
-          if(decoder_enable && bitValue_E == 0){
-            bit_stuff_error_E = 1;
-          }
         }
         break;
       case READ1:
@@ -923,9 +922,10 @@ void encoderLogic(uint8_t bitValue) {
       resetCRC();
       //Serial.println("Entrou");
       arbitration = 1; // habilita arbitração
-      
-      count = 0;  
+    
+      count_e = 0;  
       bit_stuff_E = 0;
+
       er_count = 0;
       bit_stuff_enable_E = 0;
       
@@ -936,7 +936,7 @@ void encoderLogic(uint8_t bitValue) {
       bit_stuff_enable_E = 1;
       bitStuff_E(bitValue);
       start_d = bitValue;
-      count = 0;
+      count_e = 0;
       Serial.print(" ");
       
       break;
@@ -947,17 +947,19 @@ void encoderLogic(uint8_t bitValue) {
         j--;
       }
       else {
-        if (count < 10 && bit_stuff_E == 0) {
+        if (count_e < 10 && bit_stuff_E == 0) {
+
           busWrite(bitValue);
-          id[count] = bitValue;
-          count++;
+          id[count_e] = bitValue;
+          count_e++;
         }
-        else if (count == 10 && bit_stuff_E == 0) {
+
+        else if (count_e == 10 && bit_stuff_E == 0) {
           statesEncoder = RTR_SRR;
           busWrite(bitValue);
-          id[count] = bitValue;
+          id[count_e] = bitValue;
           Serial.print(" ");
-          count++;
+          count_e++;
         }
       }
       
@@ -971,7 +973,7 @@ void encoderLogic(uint8_t bitValue) {
         j--;
       }
       else{
-        rtr_srr = bitValue;
+        rtr_srr_e = bitValue;
         statesEncoder = IDE;
         busWrite(bitValue);
       }
@@ -986,11 +988,11 @@ void encoderLogic(uint8_t bitValue) {
       }
       else{
         arbitration = 0;
-        ide = bitValue;
+        ide_e = bitValue;
         busWrite(bitValue);
-        count = 0;
+        count_e = 0;
 
-        if (ide == 1) {
+        if (ide_e == 1) {
           statesEncoder = ID_EXTEND;
           Serial.print("\nID_EXTEND_E: ");
         }
@@ -1008,11 +1010,11 @@ void encoderLogic(uint8_t bitValue) {
         busWrite(bit_stuff_value_E);
         j--;
       }
-      else if (count < 17) {
+      else if (count_e < 17) {
         busWrite(bitValue);
-        count++;
+        count_e++;
       }
-      else if (count == 17) {
+      else if (count_e == 17) {
         busWrite(bitValue);
         statesEncoder = RTR_EXTEND;
         Serial.print(" ");
@@ -1057,7 +1059,7 @@ void encoderLogic(uint8_t bitValue) {
       }
       else{
         busWrite(bitValue);
-        count = 0;
+        count_e = 0;
         statesEncoder = DLC;
         Serial.print("\nDLC: ");
       }
@@ -1068,13 +1070,13 @@ void encoderLogic(uint8_t bitValue) {
         busWrite(bit_stuff_value_E);
         j--;
       }
-      else if (count <= 3) {
-        dlc[count] = bitValue;
+      else if (count_e <= 3) {
+        dlc_e[count_e] = bitValue;
         busWrite(bitValue);
-        count ++;
+        count_e ++;
       }
 
-      if (count == 4) {
+      if (count_e == 4) {
         //calcula o datanho do campo de dados
         //        for(int i=0;i<4;i++){
         //          Serial.print("i: ");
@@ -1082,19 +1084,19 @@ void encoderLogic(uint8_t bitValue) {
         //          Serial.print("dlc: ");
         //          Serial.println(dlc[i]);
         //        }
-        data_length = numberOfData();
+        data_length_e = numberOfData();
         //Serial.print("Tamanho dos dados: ");
-        //Serial.print(data_length);
+        //Serial.print(data_length_e);
 
-        if ((/*count == 3 &&*/ ( (rtr_srr == 1 && ide == 0) || (ide == 1 && rtr_extend == 1) ) || data_length == 0) ) {
+        if ((/*count_e == 3 &&*/ ( (rtr_srr_e == 1 && ide_e == 0) || (ide_e == 1 && rtr_extend == 1) ) || data_length_e == 0) ) {
               statesEncoder = CRC;
               Serial.print("CRC: ");
-              count = 0;
+              count_e = 0;
             }
             else {
               statesEncoder = DATA;
               Serial.print("\nDATA: ");
-              count = 0;
+              count_e = 0;
             }
       }
       break;
@@ -1104,23 +1106,16 @@ void encoderLogic(uint8_t bitValue) {
         busWrite(bit_stuff_value_E);
         j--;
       }
-      if (count < data_length && bit_stuff_E == 0 && bit_stuff_error == 0) {
+      if ( count_e < data_length_e && bit_stuff_E == 0){
         busWrite(bitValue);
-        count ++;
+        count_e ++;
       }
-      else if (bit_stuff_error == 1 && count < data_length) {     //Verifica se ocorreu um erro enquanto esta lendo os dados
-        statesEncoder = ERROR_FLAG;
-        Serial.print("\nError Flag: ");
-        count = 0;
-      }
-      
-
       //Se o tamanho dos dados forem menor que 8 ignora os proximo bit ate mudar de estados
-      if (count == data_length) {
+      if (count_e == data_length_e) {
         statesEncoder = CRC;
         Serial.println("");
         Serial.print("CRC: ");
-        count = 0;
+        count_e = 0;
 
       }
       break;
@@ -1131,15 +1126,15 @@ void encoderLogic(uint8_t bitValue) {
         bitStuff_E(bit_stuff_value_E);  //o bit de bit stuff tambem conta para o novo bitstuff
         j--;//se tiver realizado o bitstuff o encoder nao deve avançar no frame
       }
-      else if (count < 14) {
-        busWrite(crc_check[count]);
-        count++;
+      else if (count_e < 14) {
+        busWrite(crc_check[count_e]);
+        count_e++;
       }
-      else if (count == 14) {
-        busWrite(crc_check[count]);
+      else if (count_e == 14) {
+        busWrite(crc_check[count_e]);
         statesEncoder = CRC_DELIMITER;
         bit_stuff_enable_E = 0;         //desabilita a verificacao do bitStuff_E
-        count = 0;
+        count_e = 0;
         Serial.print(" ");
       }
       break;
@@ -1152,40 +1147,40 @@ void encoderLogic(uint8_t bitValue) {
       Serial.print("\nAck_Slot: ");
       busWrite(1);
       statesEncoder = ACK_DELIMITER;
-      count = 0;
+      count_e = 0;
       break;
     case ACK_DELIMITER:
       Serial.print("\nAckDelimiter: ");
       busWrite(1);
       statesEncoder = ENDOF;
       Serial.print("\nEOF: ");
-      count = 0;
+      count_e = 0;
       break;
     case ENDOF:
-      if ( count < 6) {
+      if ( count_e < 6) {
         busWrite(1);
-        count++;
+        count_e++;
       }
-      else if ( count == 6) {
+      else if ( count_e == 6) {
         busWrite(bitValue);
         statesEncoder = IFS;
         Serial.print("\nIFS: ");
-        count = 0;
+        count_e = 0;
       }
       break;
     case IFS:
-      if (count < 2) {
+      if (count_e < 2) {
         busWrite(1);
-        count++;
+        count_e++;
       }
-      if (count == 2) {
-        busWrite(ifs[count]);
+      if (count_e == 2) {
+        busWrite(ifs[count_e]);
         idle = 1;
         statesEncoder = START_D;
-        count = 0;
+        count_e = 0;
       }
       else if (bitValue == 0) {
-        count = 0;
+        count_e = 0;
         statesEncoder = OVERLOAD_FLAG;
       }
       Serial.println("");
@@ -1211,14 +1206,14 @@ void encoderLogic(uint8_t bitValue) {
         statesDecoder = ERROR_DELIMITER;
         Serial.println("");
         Serial.print("Erro Delimiter: ");
-        count = 1;
+        count_e = 1;
       }
       else if (er_count == 11) {
         statesDecoder = ERROR_DELIMITER;
         Serial.println("");
         Serial.print("Erro Delimiter: ");
 
-        count = 0;
+        count_e = 0;
       }
       else if ( bitValue == 0 && er_count < 11) {
                    busWrite(0);
@@ -1228,19 +1223,19 @@ void encoderLogic(uint8_t bitValue) {
       break;
     case ERROR_DELIMITER:
       
-      if (count < 7) {
+      if (count_e < 7) {
          
         busWrite(1);
-        count++;
+        count_e++;
       }
-      else if (count == 7) {
+      else if (count_e == 7) {
          
         busWrite(1);
         Serial.println("");
         Serial.print("IFS: ");
         i = LENGTHFRAME;
         statesDecoder = IFS;
-        count = 0;
+        count_e = 0;
       }
       break;
 
@@ -1261,7 +1256,7 @@ void encoderLogic(uint8_t bitValue) {
       if ( bitValue == 1) {
         statesDecoder = OVERLOAD_DELIMITER;
          Serial.print("\nOverloaddELIMITER: ");
-        count = 1;
+        count_e = 1;
       }
       else if (bitValue == 0 && er_count < 11) {
          
@@ -1272,24 +1267,24 @@ void encoderLogic(uint8_t bitValue) {
          
          busWrite(0);
         statesDecoder = OVERLOAD_DELIMITER;
-        count = 0;
+        count_e = 0;
       }
       break;
     case OVERLOAD_DELIMITER:
 
-      if ( count < 7) {
+      if ( count_e < 7) {
          
         busWrite(1);
 
-        count++;
+        count_e++;
       }
-      else if ( count == 7) {
+      else if ( count_e == 7) {
          
         busWrite(1);
 
         statesDecoder = IFS;
         Serial.print("\nIFS: ");
-        count = 0;
+        count_e = 0;
       }
       break;
     }
@@ -1333,6 +1328,13 @@ void loop(void){
   }
   btlLogic();
   readAndWriteBus();
+<<<<<<< HEAD
+=======
+  if(encoder_enable && WPFlag){
+    encoderLogic(busWriteValue);
+    WPFlag = 0;
+  }
+>>>>>>> 0a59aa0ca6422a53f656fc16d40ee1d9506943a8
   if(decoder_enable && sample_pointFlag){
     decoderLogic(busReadValue);
     sample_pointFlag = 0;
