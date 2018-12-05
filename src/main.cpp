@@ -3,7 +3,7 @@
 
 #include <TimerOne.h>
 
-#define TIME_INTR 200000
+#define TIME_INTR 100000
 #define SJW 4
 #define TSEG1 8
 #define TSEG2 15
@@ -43,7 +43,7 @@ StatesDecoder statesDecoder, statesEncoder;
 //enum StatesOverload {OVERLOAD_FLAG, OVERLOAD_FLAG2, OVERLOAD_DELIMITER};
 //StatesOverload statesOverload;
 
-uint8_t FE = 0, idle = 0, WP = 0, minimum = 0, sample_point, TQChange = 0, flag = 1;
+uint8_t FE = 0, idle = 1, WP = 0, minimum = 0, sample_point, TQChange = 0, flag = 1;
 volatile uint8_t BTLCount = 0; // use volatile for shared variables
 byte hsValue = 0, tqValue = 0 , ssValue = 0, states = 0, STATE0 = 0, STATE1 = 0;
 
@@ -69,7 +69,8 @@ uint8_t crc_check[15], enable_crc, encoder_enable, crc_error = 0;
 uint8_t arbitration=0,newBitValue=0, newWriteDataFlag=0, bitReaded, rValue, newBitReaded, busReadValue;
 uint8_t sample_pointFlag, WPFlag, diff_rx_tx;
 
-
+//Variaveis Testte
+uint8_t can_stand[] = {0,1,0,0,0,1,0,0,1,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,1,1,1,0,0,0,1,1,0,1,0,0,1,0,1,1,1,1,1,1,1,1};
 
 void busWrite(uint8_t value){
   newBitValue = 1;
@@ -90,7 +91,8 @@ void readAndWriteBus(){
     WP = 0;
   }
   if(sample_point){
-    busReadValue = digitalRead(RX_PIN);
+    //busReadValue = digitalRead(RX_PIN);
+    busReadValue = can_stand[i++];
     sample_point = 0;
     sample_pointFlag = 1;
     if(busReadValue == busWriteValue){
@@ -1209,7 +1211,6 @@ void encoderLogic(uint8_t bitValue) {
     }
   if(enable_crc == 1 && !bit_stuff){
     crc_calculator(bitValue);
-    Serial.print("foi");
   }
   if(bit_stuff){
     //Serial.print("!"+ String(bit_stuff_value) + "!");
@@ -1246,8 +1247,11 @@ void setup(void){
 }
 
 void loop(void){
-  uint8_t can_stand[] = {0,1,0,0,0,1,0,0,1,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,1,1,1,0,0,0,1,1,0,1,0,0,1,0,1,1,1,1,1,1,1,1};
-  
+  if(idle){
+    decoder_enable = 1;
+    encoder_enable = 1;
+  }
+  btlLogic();
   readAndWriteBus();
   if(encoder_enable && WPFlag){
     encoderLogic(i);
@@ -1257,10 +1261,7 @@ void loop(void){
     decoderLogic(busReadValue);
     sample_pointFlag = 0;
   }
-  if(idle){
-    decoder_enable = 1;
-    encoder_enable = 1;
-  }
+  
   /*
   uint8_t a[]= {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
   if(i<15) bitStuff(a[i++]);
