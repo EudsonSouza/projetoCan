@@ -60,10 +60,10 @@ uint8_t id[11], id_extend[18], dlc[4], data[64], crc[15], endof[7], ifs[3], erro
 
 
 //variaveis para o encoder
-
+uint8_t busWriteValue;
 //Variaveis para o crc
 
-uint8_t crc_check[15], enable_crc, encoder_enable, ctc_error;
+uint8_t crc_check[15], enable_crc, encoder_enable, crc_error = 0;
 
 // Variaveis de integração BTL - EncoderDecoder
 uint8_t arbitration=0,newBitValue=0, newWriteDataFlag=0, bitReaded, rValue, newBitReaded, busReadValue;
@@ -402,6 +402,7 @@ void decoderLogic(uint8_t bitValue) {
       idle = 0;
 
       enable_crc = 1;
+      crc_error = 0;
       resetCRC();
 
       if (bitValue == 1) {
@@ -1284,5 +1285,5 @@ void loop(void){
    // Serial.print(crc_check[j]);
   //}
  // Serial.println("");
->>>>>>> cfcb45323f0c6a6ec9896ce3f392ad975e30f1b2
+>>>>>>> cfcb45323f0c6a6ec9896ce3f392ad975e30f1b2*/
 }
