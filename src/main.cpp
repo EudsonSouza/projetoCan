@@ -56,19 +56,52 @@ uint8_t count1;
 //variaveis para o decoder
 uint8_t count = 0, over_count = 0, er_count = 0, data_length;
 uint8_t start_d, rtr_srr, ide, r0, rtr_extend, r1, crc_delimiter, ack_delimiter, ack_slot;
-uint8_t id[11], id_extend[18], dlc[4], data[64], crc[15], oef[7], ifs[3], error_enable, overload_enable, busWrite_value, decoder_enable=0;
+uint8_t id[11], id_extend[18], dlc[4], data[64], crc[15], oef[7], ifs[3], error_enable, overload_enable, busWriteValue, decoder_enable=0;
 
 
 //variaveis para o encoder
-uint8_t arbitration=0,newBitValue=0, newWriteData=0, bitReaded;
+
 //Variaveis para o crc
-uint8_t crc_check[15], enable_crc, transmission_enable;
+uint8_t crc_check[15], enable_crc, encoder_enable;
+
+// Variaveis de integração BTL - EncoderDecoder
+uint8_t arbitration=0,newBitValue=0, newWriteDataFlag=0, bitReaded, rValue, newBitReaded, busReadValue;
+uint8_t sample_pointFlag, WPFlag, diff_rx_tx;
+
 
 void busWrite(uint8_t value){
-  newWriteData = 1;
-  busWrite_value = value;
+  newBitValue = 1;
+  busWriteValue = value;
   Serial.print(value);
 }
+
+void readAndWriteBus(){
+  
+  if (newBitValue && WP){
+    digitalWrite(TX_PIN, busWriteValue);
+    newBitValue = 0;
+    WP = 0;
+    WPFlag = 1;
+  }
+  else if (WP){
+    digitalWrite(TX_PIN, 1);
+    WP = 0;
+  }
+  if(sample_point){
+    busReadValue = digitalRead(RX_PIN);
+    sample_point = 0;
+    sample_pointFlag = 1;
+    if(busReadValue == busWriteValue){
+      diff_rx_tx = 0;
+    }
+    else{
+      diff_rx_tx = 1;
+    }
+  
+}
+}
+  
+
 
 //Calcula o tamanho do campo de dados
 uint8_t numberOfData() {
@@ -156,7 +189,7 @@ void idleDetector() {
   idle = digitalRead(IDLE_PIN);
 }
 
-void updateTQ(void) {
+void updateTQ() {
   /*                            //DEBUG CODE
     Serial.print("Estado: ");
     Serial.print(statesBTL);
@@ -360,8 +393,6 @@ void bitStuff(uint8_t bitValue) {
 }
 
 
- 
-
 
 
 //implementacao da Maquina de estados do decoder
@@ -369,7 +400,7 @@ void decoderLogic(uint8_t bitValue) {
 
   switch (statesDecoder) {
     case START_D:
-      Serial.print("Start: "); //print
+      idle = 0;
       enable_crc = 1;
       resetCRC();
 
@@ -380,6 +411,7 @@ void decoderLogic(uint8_t bitValue) {
         bit_stuff_enable = 0;
       }
       else {
+        Serial.print("Start: "); //print
         Serial.println(start_d);  //print
         statesDecoder = ID;
         Serial.print("ID: "); //print
@@ -677,6 +709,7 @@ void decoderLogic(uint8_t bitValue) {
         statesDecoder = OVERLOAD_FLAG;
         Serial.print("\nOverloadFLAG: ");
       }
+      idle = 1;
       break;
 
     case ERROR_FLAG:
@@ -792,13 +825,13 @@ void decoderLogic(uint8_t bitValue) {
 void encoderLogic(uint8_t bitValue) {
   switch (statesEncoder) {
     case START_D:
+      idle = 0;
 
       Serial.print("\nSTART_E: ");
       enable_crc = 1;
       resetCRC();
       //Serial.println("Entrou");
       arbitration = 1; // habilita arbitração
-
       
       count = 0;  
       bit_stuff = 0;
@@ -910,6 +943,9 @@ void encoderLogic(uint8_t bitValue) {
       break;
     case R1:
       bitStuff(bitValue);
+      decoder_enable = 0;
+      statesDecoder = START_D;
+
       Serial.print("\nR1: ");
       if(bit_stuff){
         busWrite(bit_stuff_value);
@@ -1171,8 +1207,12 @@ void encoderLogic(uint8_t bitValue) {
   }
   if(bit_stuff){
     //Serial.print("!"+ String(bit_stuff_value) + "!");
-    bitStuff(bit_stuff_value);
-    
+    bitStuff(bit_stuff_value); 
+  }
+  if(arbitration && diff_rx_tx){
+    encoder_enable = 0;
+    arbitration = 0;
+    statesEncoder = START_D;
   }
  }
 
@@ -1200,10 +1240,26 @@ void setup(void){
 }
 
 void loop(void){
-  /*uint8_t a[]= {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
+  uint8_t can_stand[] = {0,1,0,0,0,1,0,0,1,0,0,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,1,0,0,0,0,0,1,0,0,0,0,1,0,1,1,1,0,0,0,1,1,0,1,0,0,1,0,1,1,1,1,1,1,1,1};
+  
+  readAndWriteBus();
+  if(encoder_enable && WPFlag){
+    encoderLogic(i);
+    WPFlag = 0;
+  }
+  if(decoder_enable && sample_pointFlag){
+    decoderLogic(busReadValue);
+    sample_pointFlag = 0;
+  }
+  if(idle){
+    decoder_enable = 1;
+    encoder_enable = 1;
+  }
+  /*
+  uint8_t a[]= {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
   if(i<15) bitStuff(a[i++]);
   bit_stuff_enable = 1;
-  */
+  
 
 
 
@@ -1214,5 +1270,5 @@ void loop(void){
   if (i < sizeof(can_stand)/sizeof(can_stand[0])) {
     decoderLogic(can_stand[i++]);
 
-  } 
+  } */
 }
